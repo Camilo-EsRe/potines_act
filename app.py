@@ -11,7 +11,57 @@ app = Flask(__name__)
 GMAIL_REMITENTE     = "potinesdomiclios@gmail.com"
 GMAIL_PASSWORD      = "cssh uvlx jgrc daki"
 CORREO_DESPACHADORA = "potinesdomiclios@gmail.com"
-COSTO_DOMICILIO     = 4500
+
+# TARIFAS INTERNAS DE ENVÍO (Protegidas en Backend)
+TARIFAS_BARRIOS = {
+    # Veredas y zonas rurales
+    "la_aguacatala_vereda": 7500,
+    "el_cano": 7000,
+    "la_miel": 8000,
+    "la_chuscala_vereda": 10000,
+    "el_raizal": 10000,
+    "la_raya": 7000,
+    "la_corrala": 8000,
+    "la_valeria": 8000,
+    "salinas": 13000,
+    "la_salada_alta": 12000,
+    "la_salada_baja": 12000,
+    "la_clara": 13000,
+    "primavera": 12000,
+
+    # Barrios
+    "barrios_unidos": 5000,
+    "la_pradera": 4000,
+    "barrio_nuevo": 5000,
+    "los_cerezos": 6000,
+    "cristo_rey": 6000,
+    "olaya_herrera": 5000,
+    "la_docena": 5000,
+    "la_inmaculada": 5000,
+    "felipe_1": 6000,
+    "felipe_2": 6000,
+    "la_chuscala_barrio": 8500,
+    "el_minuto": 8500,
+    "la_planta": 5000,
+    "las_margaritas": 5000,
+    "la_acuarela": 6000,
+    "zona_centro": 6000,
+    "andalucia": 7000,
+    "la_goretti": 5000,
+    "el_socorro": 5000,
+    "villa_capri": 6000,
+    "la_esperanza": 2000,
+    "fundadores": 5000,
+    "centenario": 6000,
+    "mandalay": 6000,
+    "la_playita": 6000,
+    "la_aguacatala_kaiser": 6000,
+    "bellavista": 2000,
+    "el_porvenir": 2000,
+    "la_loceria": 5000
+}
+
+COSTO_DOMICILIO_DEFECTO = 5000
 # ══════════════════════════════════════════════════════════
 
 _orden_counter = 0
@@ -90,9 +140,15 @@ def enviar_pedido():
     total_bebidas = sum(SODA_PRICES.get(k,0)*v for k,v in bebidas.items() if v>0)
     total_adiciones = sum(ADICION_PRICES.get(k,0)*v for k,v in adiciones.items() if v>0)
 
-    costo_domicilio = datos.get('costo_domicilio', 0)
+    # Cálculo seguro del domicilio basado en el identificador recibido
+    barrio_recibido = str(domicilio.get('barrio', '')).lower().strip()
+    costo_domicilio = TARIFAS_BARRIOS.get(barrio_recibido, COSTO_DOMICILIO_DEFECTO)
 
     total_general = total_combos + total_bebidas + total_adiciones + costo_domicilio
+
+    # Extraer y formatear datos críticos para alertas de la despachadora
+    alerta_barrio = barrio_recibido.upper()
+    alerta_direccion = str(domicilio.get('direccion', 'N/A')).upper()
 
     # ══════════════════════════════════════════════════════
     # RESUMEN DEL PEDIDO
@@ -116,14 +172,10 @@ def enviar_pedido():
     lineas += ["","🥫 SALSAS:"]
 
     for ck,qty in combos.items():
-
         for i in range(1,qty+1):
-
             sk  = f"sauce_{ck}_{i}"
             sel = salsas.get(sk,[])
-
             lbl = (COMBO_NAMES.get(ck,ck)+f" #{i}") if qty>1 else COMBO_NAMES.get(ck,ck)
-
             lineas.append(
                 f"  {lbl}: {', '.join(SAUCE_NAMES.get(s,s) for s in sel) if sel else 'Sin especificar'}"
             )
@@ -131,7 +183,6 @@ def enviar_pedido():
 
     # BEBIDAS
     bped = {k:v for k,v in bebidas.items() if v>0}
-
     lineas += ["","🥤 BEBIDAS:" if bped else "🥤 BEBIDAS: Sin bebidas"]
 
     for k,v in bped.items():
@@ -142,26 +193,27 @@ def enviar_pedido():
 
     # ADICIONES
     aped = {k:v for k,v in adiciones.items() if v>0}
-
     lineas += ["","➕ ADICIONES:" if aped else "➕ ADICIONES: Sin adiciones"]
 
     for k,v in aped.items():
-
         nombre = k.capitalize()
-
         lineas.append(
             f"  x{v} {nombre}  →  ${ADICION_PRICES.get(k,0)*v:,}"
         )
 
 
-    # DOMICILIO
+    # DOMICILIO (Reestructurado con Bloque de Validación Crítica al Inicio)
     lineas += [
         "",
-        "📍 DOMICILIO:",
+        "🚨 VERIFICACIÓN DE DIRECCIÓN 🚨",
+        "━━━ BARRIO Y DIRECCIÓN SELECCIONADOS ━━━",
+        f"📍 BARRIO:    {alerta_barrio}",
+        f"🏠 DIRECCIÓN: {alerta_direccion}",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "",
+        "📍 DETALLES DE ENTREGA:",
         f"  Nombre:     {domicilio.get('nombre','N/A')}",
         f"  Celular:    {domicilio.get('celular','N/A')}",
-        f"  Barrio:     {domicilio.get('barrio','N/A')}",
-        f"  Dirección:  {domicilio.get('direccion','N/A')}",
         f"  Referencia: {domicilio.get('referencia','—') or '—'}",
         "",
         "="*40,
@@ -179,7 +231,6 @@ def enviar_pedido():
     try:
         _enviar_correo(numero_orden, resumen_texto, domicilio, total_general)
         correo_ok = True
-
     except Exception as e:
         print(f"❌ Error correo: {e}")
         correo_ok = False
@@ -201,7 +252,6 @@ def enviar_pedido():
 def _enviar_correo(numero_orden, resumen_texto, domicilio, total):
 
     msg = MIMEMultipart("alternative")
-
     msg["Subject"] = f"🍟 POTINES — Nuevo pedido {numero_orden}"
     msg["From"]    = GMAIL_REMITENTE
     msg["To"]      = CORREO_DESPACHADORA
@@ -213,7 +263,7 @@ def _enviar_correo(numero_orden, resumen_texto, domicilio, total):
 
 <h2>🍟 POTINES</h2>
 
-<pre style="background:white;padding:20px;border-radius:10px;">
+<pre style="background:white;padding:20px;border-radius:10px;font-family:monospace;font-size:14px;line-height:1.5;">
 {resumen_texto}
 </pre>
 
@@ -227,9 +277,7 @@ def _enviar_correo(numero_orden, resumen_texto, domicilio, total):
     msg.attach(MIMEText(html,"html","utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com",465) as server:
-
         server.login(GMAIL_REMITENTE, GMAIL_PASSWORD)
-
         server.sendmail(
             GMAIL_REMITENTE,
             CORREO_DESPACHADORA,
@@ -239,3 +287,4 @@ def _enviar_correo(numero_orden, resumen_texto, domicilio, total):
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
