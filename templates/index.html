@@ -2035,5 +2035,51 @@ document.addEventListener('click', function reproducirAudio() {
 <div class="worldcup-banner">
     ⚽ Apoyando a Colombia en el Mundial 2026 🇨🇴
 </div>
+<div id="modal-cerrado" class="fixed inset-0 bg-black/95 z-[10000] hidden flex-col items-center justify-center p-4 text-center">
+  <div class="max-w-md w-full bg-[#131313] p-6 rounded-2xl border potines-gold-border shadow-2xl space-y-6">
+    
+    <h2 class="text-3xl font-bold potines-gold">¡Hemos cerrado por hoy!</h2>
+    <p class="text-gray-400 text-sm">🍟 Nuestro horario de atención es hasta las 10:00 PM,¿Te gustan nuestras papas? 😋 También puedes comprarlas listas para freír y disfrutarlas en casa o para tu negocio. Haz tu pedido en el siguiente enlace:</p>
+    
+    <div class="rounded-xl overflow-hidden border potines-border-soft">
+      <img
+  src="{{ url_for('static', filename='logojycpapas.png') }}"
+  alt="Cerrado"
+  class="w-full h-48 object-contain"
+/>
+    </div>
+    
+    <a href="https://jycpapas.com/" target="_blank" class="block w-full text-center py-3 rounded-xl font-medium continue-btn transition-all">
+      👉 Visitar nuestro Sitio Principal
+    </a>
+    
+  </div>
+</div>
+
+<script>
+  function chequearHorario() {
+    fetch('/estado-tienda')
+      .then(response => response.json())
+      .then(data => {
+        const modalCerrado = document.getElementById('modal-cerrado');
+        if (!data.abierto) {
+          modalCerrado.classList.remove('hidden');
+          modalCerrado.classList.add('flex');
+          document.body.style.overflow = 'hidden'; // Bloquea scroll
+        } else {
+          modalCerrado.classList.add('hidden');
+          modalCerrado.classList.remove('flex');
+          document.body.style.overflow = 'auto'; // Habilita scroll
+        }
+      })
+      .catch(err => console.error("Error validando horario:", err));
+  }
+
+  // Ejecución inmediata al cargar la página
+  document.addEventListener('DOMContentLoaded', chequearHorario);
+  
+  // Bucle de verificación cada 30 segundos
+  setInterval(chequearHorario, 30000);
+</script>
 </body>
 </html>

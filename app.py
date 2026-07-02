@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, jsonify
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from datetime import datetime
+import pytz
 
 app = Flask(__name__)
 
@@ -117,6 +119,24 @@ ADICION_PRICES = {
     "huevos":800,
     "salchicha":800
 }
+
+def verificar_horario_abierto():
+    # Configurar la zona horaria de Colombia
+    zona_co = pytz.timezone('America/Bogota')
+    hora_actual = datetime.now(zona_co).time()
+    
+    # Definir hora de cierre (22:00 = 10:00 PM) y apertura (06:00 AM)
+    hora_cierre = hora_actual.replace(hour=22, minute=0, second=0, microsecond=0)
+    hora_apertura = hora_actual.replace(hour=6, minute=0, second=0, microsecond=0)
+    
+    # Si la hora actual es mayor o igual a las 10 PM O menor que las 6 AM, está CERRADO
+    if hora_actual >= hora_cierre or hora_actual < hora_apertura:
+        return False
+    return True
+
+@app.route('/estado-tienda')
+def estado_tienda():
+    return jsonify({"abierto": verificar_horario_abierto()})
 
 
 @app.route('/')
